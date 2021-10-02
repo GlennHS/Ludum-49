@@ -64,6 +64,15 @@
         }
       }
 
+      function getColorComplement(colorString) {
+        switch (colorString) {
+          case colorP1, colorP2, colorP4, colorP5:
+            return "#000000";
+          default:
+            return "#FFFFFF";
+        }
+      }
+
       // Attach event listeners to canvas
       canvas.addEventListener('mousedown', function(e) {
         // debugger;
@@ -76,20 +85,39 @@
       // #endregion
 
       // #region Classes
-      class Button {
+
+      /**
+       * Main parent class for all window game objects
+       * Pseudo-abstract (should never be called but is inherited from. Can't actually do this in JS I think)
+       */
+      class GameObject {
 
         constructor(x, y, width, height, text, color, onclick) {
           this.x = x;
           this.y = y;
           this.width = width;
           this.height = height;
-          this.text = text;
-          this.color = color;
           this.onclick = onclick;
         }
 
         click() {
           this.onclick();
+        }
+
+        dispose() {
+          gameWindowContents.splice(gameWindowContents.indexOf[this], 1);
+        }
+      }
+
+      class Button extends GameObject {
+
+        constructor(x, y, width, height, text, color, onclick) {
+          super(x, y, width, height, onclick)
+          this.text = text;
+          this.color = color;
+          this.onclick = onclick;
+
+          gameWindowContents.push(this)
         }
 
         getOptimumFontSize() {
@@ -100,7 +128,6 @@
         }
 
         draw() {
-          gameWindowContents.push(this)
           context.beginPath();
           context.rect(this.x, this.y, this.width, this.height);
           context.fillStyle = this.color;
@@ -112,23 +139,35 @@
           context.strokeStyle = this.color;
           context.strokeRect(this.x, this.y, this.width, this.height);
 
-          context.font = `${this.getOptimumFontSize()}px Arial`;
-          context.fillStyle = "#fff";
+          const optimumFontSize = this.getOptimumFontSize();
+          context.font = `${optimumFontSize}px Arial`;
+          context.fillStyle = getColorComplement(this.color);
           context.textAlign = "center";
           let [centerX, centerY] = getCenter(this);
-          context.fillText(this.text, centerX, centerY);
+          context.fillText(this.text, centerX, centerY + optimumFontSize / 3);
         }
-        }
-        // #endregion
+      }
+      // #endregion
 
       const loadGame = () => {
         drawMainMenu();
+        window.requestAnimationFrame(redraw)
+      }
+
+      const redraw = () => {
+        clearWindow();
+        gameWindowContents.forEach( obj => {
+          obj instanceof GameObject ? obj.draw() : false;
+        })
+        window.requestAnimationFrame(redraw)
       }
 
       const drawMainMenu = () => {
         clearWindow();
-        let btnPlay = new Button(200,200, 600, 80, "PLAY", colorP5, drawGameWindow);
-        btnPlay.draw();
+        let btnPlay = new Button(200,160, 600, 60, "PLAY", colorP5, drawGameWindow);
+        let btnOptions = new Button(200, 260, 600, 60, "OPTIONS", colorP5, drawGameWindow);
+        let btnAbout = new Button(200,360, 600, 60, "ABOUT", colorP5, drawGameWindow);
+        let btnExit = new Button(200,460, 600, 60, "EXIT", colorP3, drawGameWindow);
       }
 
       const drawGameWindow = () => {
