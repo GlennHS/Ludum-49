@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+      }
+    </style>
+  </head>
+  <body onload="loadGame();">
+    <canvas id="canvas" width="1000" height="560"></canvas>
+    <script type="application/javascript">
+      // #region Global Variables
+      // Canvas
+      const canvas = document.getElementById("canvas");
+      let context = canvas.getContext('2d');
+      let canvasWidth = canvas.offsetWidth;
+      let canvasHeight = canvas.offsetHeight;
+      let gameWindowContents = [];
+      let lastClickPos, lastElemClicked;
+
+      // Colors
+      const colorP1 = '#B3B4B4';
+      const colorP2 = '#FAC62F';
+      const colorP3 = '#EB2C26';
+      const colorP4 = '#24F554';
+      const colorP5 = '#8BF7F4';
+      // #endregion
+
+      // #region Utility Functions
+      const clearWindow = () => { context.clearRect(0, 0, canvasWidth, canvasHeight); }
+
+      const getElementClicked = (canvas, event) => {
+        let [xPos, yPos] = getCursorPosition(canvas, event);
+        let elemClicked;
+        gameWindowContents.forEach( obj => {
+          try {
+            if(typeof obj.width != "undefined" && typeof obj.height != "undefined" && typeof obj.x != "undefined" && typeof obj.y != "undefined") {
+              if(obj.x < xPos && xPos < (obj.x + obj.width) && obj.y < yPos && yPos < (obj.y + obj.height)) {
+                elemClicked = obj;
+              }
+            }
+          } catch(e) { console.error(e); }
+        })
+        return elemClicked || false;
+      }
+
+      function getCursorPosition(canvas, event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        return [x, y];
+      }
+
+      function checkIsGameObject(gameObject) {
+        return gameObject.width && gameObject.height && gameObject.x && gameObject.y;
+      }
+
+      function getCenter(gameObject) {
+        if(checkIsGameObject(gameObject)) {
+          return [gameObject.x + (gameObject.width / 2), gameObject.y + (gameObject.height / 2)]
+        }
+      }
+
+      // Attach event listeners to canvas
+      canvas.addEventListener('mousedown', function(e) {
+        // debugger;
+        lastClickPos = getCursorPosition(canvas, e);
+        lastElemClicked = getElementClicked(canvas, e);
+        if(lastElemClicked) {
+          lastElemClicked.click();
+        }
+      })
+      // #endregion
+
+      // #region Classes
+      class Button {
+
+        constructor(x, y, width, height, text, color, onclick) {
+          this.x = x;
+          this.y = y;
+          this.width = width;
+          this.height = height;
+          this.text = text;
+          this.color = color;
+          this.onclick = onclick;
+        }
+
+        click() {
+          this.onclick();
+        }
+
+        getOptimumFontSize() {
+          const fontSizes = [11, 12, 14, 16, 18, 24, 32, 48, 64];
+          const idealFontSize = this.height / 2;
+          let validFontSizes = fontSizes.filter((s) => s > idealFontSize);
+          return validFontSizes.length > 0 ? validFontSizes[0] : fontSizes[fontSizes.length - 1];
+        }
+
+        draw() {
+          gameWindowContents.push(this)
+          context.beginPath();
+          context.rect(this.x, this.y, this.width, this.height);
+          context.fillStyle = this.color;
+          context.fill();
+          context.closePath();
+
+          context.lineJoin = 'bevel';
+          context.lineWidth = 25;
+          context.strokeStyle = this.color;
+          context.strokeRect(this.x, this.y, this.width, this.height);
+
+          context.font = `${this.getOptimumFontSize()}px Arial`;
+          context.fillStyle = "#fff";
+          context.textAlign = "center";
+          let [centerX, centerY] = getCenter(this);
+          context.fillText(this.text, centerX, centerY);
+        }
+        }
+        // #endregion
+
+      const loadGame = () => {
+        drawMainMenu();
+      }
+
+      const drawMainMenu = () => {
+        clearWindow();
+        let btnPlay = new Button(200,200, 600, 80, "PLAY", colorP5, drawGameWindow);
+        btnPlay.draw();
+      }
+
+      const drawGameWindow = () => {
+        console.log("Callback Worked!");
+      }
+    </script>
+  </body>
+</html>
