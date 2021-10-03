@@ -19,7 +19,12 @@
       let canvasWidth = canvas.offsetWidth;
       let canvasHeight = canvas.offsetHeight;
       let gameWindowContents = [];
+      let requestingRepaint = false;
       let lastClickPos, lastElemClicked;
+
+      let boardSize = 8;
+      let boardDimension = 400;
+      let tokenSize = boardDimension / boardSize;
 
       // Colors
       const colorP1 = '#B3B4B4';
@@ -30,7 +35,9 @@
       // #endregion
 
       // #region Utility Functions
-      const clearWindow = () => { context.clearRect(0, 0, canvasWidth, canvasHeight); }
+      const clearWindow = () => context.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      const clearGameWindowContents = () => gameWindowContents = [];
 
       const getElementClicked = (canvas, event) => {
         let [xPos, yPos] = getCursorPosition(canvas, event);
@@ -47,24 +54,24 @@
         return elemClicked || false;
       }
 
-      function getCursorPosition(canvas, event) {
+      const getCursorPosition = (canvas, event) => {
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         return [x, y];
       }
 
-      function checkIsGameObject(gameObject) {
+      const checkIsGameObject = (gameObject) => {
         return gameObject.width && gameObject.height && gameObject.x && gameObject.y;
       }
 
-      function getCenter(gameObject) {
+      const getCenter = (gameObject) => {
         if(checkIsGameObject(gameObject)) {
           return [gameObject.x + (gameObject.width / 2), gameObject.y + (gameObject.height / 2)]
         }
       }
 
-      function getColorComplement(colorString) {
+      const getColorComplement = (colorString) => {
         switch (colorString) {
           case colorP1, colorP2, colorP4, colorP5:
             return "#000000";
@@ -92,7 +99,7 @@
        */
       class GameObject {
 
-        constructor(x, y, width, height, text, color, onclick) {
+        constructor(x, y, width, height, onclick) {
           this.x = x;
           this.y = y;
           this.width = width;
@@ -100,13 +107,9 @@
           this.onclick = onclick;
         }
 
-        click() {
-          this.onclick();
-        }
+        click() { this.onclick && this.onclick(); }
 
-        dispose() {
-          gameWindowContents.splice(gameWindowContents.indexOf[this], 1);
-        }
+        dispose() { gameWindowContents.splice(gameWindowContents.indexOf[this], 1); }
       }
 
       class Button extends GameObject {
@@ -147,6 +150,81 @@
           context.fillText(this.text, centerX, centerY + optimumFontSize / 3);
         }
       }
+
+      class Token extends GameObject {
+
+        constructor(x, y, type, onclick) {
+          super(x, y, tokenSize, tokenSize, onclick);
+          this.type = type;
+
+          gameWindowContents.push(this)
+        }
+
+        changePos(newPos) {
+          [this.x, this.y] = newPos;
+        }
+
+        getImg() {
+          let img = new Image();
+          switch (this.type) {
+            case "N":
+              img.src = "assets\\gif\\nitris-token.gif";
+
+            case "E":
+              img.src = "assets\\gif\\etherium-token.gif";
+
+            case "S":
+              img.src = "assets\\gif\\sardinite-token.gif";
+
+            case "W":
+              img.src = "assets\\gif\\wearine-token.gif";
+
+            default:
+              img.src = "assets\\gif\\nitris-token.gif";
+          }
+          return img;
+        }
+
+        draw() {
+          let img = this.getImg();
+          context.drawImage(img, this.x, this.y, tokenSize, tokenSize);
+        }
+      }
+
+      class Board extends GameObject {
+
+        constructor(x, y, width, height, boardState, onclick) {
+          super(x, y, width, height, onclick);
+          this.boardState = boardState || this.generateNewBoard();
+
+          gameWindowContents.push(this)
+        }
+
+        generateNewBoard() {
+          let boardOut = [];
+          for(let i = 0; i < boardSize; i++) {
+            let row = [];
+            for(let j = 0; j < boardSize; j++) {
+              let tokenToAdd = new Token(this.x + i * tokenSize, this.y + j * tokenSize, 'NESW'.split("")[Math.floor(Math.random() * 4)], function() {
+                console.log(`Token Clicked, type is ${this.type}`);
+                requestingRepaint = true;
+              })
+              row.push(tokenToAdd)
+              gameWindowContents.push(tokenToAdd)
+            }
+            boardOut.push(row);
+          }
+          // debugger;
+          return boardOut;
+        }
+
+        draw() {
+          context.lineJoin = 'miter';
+          context.lineWidth = 5;
+          context.strokeStyle = colorP1;
+          context.strokeRect(this.x, this.y, this.width, this.height);
+        }
+      }
       // #endregion
 
       const loadGame = () => {
@@ -155,23 +233,32 @@
       }
 
       const redraw = () => {
-        clearWindow();
-        gameWindowContents.forEach( obj => {
-          obj instanceof GameObject ? obj.draw() : false;
-        })
-        window.requestAnimationFrame(redraw)
+        if(requestingRepaint) {
+          clearWindow();
+          gameWindowContents.forEach( obj => {
+            typeof obj.draw != "undefined" ?  obj.draw() : false;
+          })
+          requestingRepaint = false;
+          // debugger;
+        }
+        window.requestAnimationFrame(redraw);
       }
 
       const drawMainMenu = () => {
+        clearGameWindowContents();
         clearWindow();
         let btnPlay = new Button(200,160, 600, 60, "PLAY", colorP5, drawGameWindow);
         let btnOptions = new Button(200, 260, 600, 60, "OPTIONS", colorP5, drawGameWindow);
         let btnAbout = new Button(200,360, 600, 60, "ABOUT", colorP5, drawGameWindow);
         let btnExit = new Button(200,460, 600, 60, "EXIT", colorP3, drawGameWindow);
+        requestingRepaint = true;
       }
 
       const drawGameWindow = () => {
-        console.log("Callback Worked!");
+        clearWindow();
+        clearGameWindowContents();
+        const board = new Board(50, 50, 400, 400, undefined, undefined)
+        requestingRepaint = true;
       }
     </script>
   </body>
