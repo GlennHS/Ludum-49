@@ -10,7 +10,7 @@
     </style>
   </head>
   <body onload="loadGame();">
-    <canvas id="canvas" width="1000" height="560"></canvas>
+    <canvas id="canvas" width="1240" height="700"></canvas>
     <script type="application/javascript">
       // #region Global Variables
       // Canvas
@@ -19,12 +19,14 @@
       let canvasWidth = canvas.offsetWidth;
       let canvasHeight = canvas.offsetHeight;
       let gameWindowContents = [];
+      let currentWindow = "MENU" // MENU || GAME || UPGRADE ||
       let requestingRepaint = false;
       let lastClickPos, lastElemClicked;
 
       let boardSize = 8;
-      let boardDimension = 400;
-      let tokenSize = boardDimension / boardSize;
+      let boardDimension = 600;
+      let tokenGap = 8;
+      let tokenSize = Math.floor(boardDimension / boardSize) - tokenGap;
 
       // Colors
       const colorP1 = '#B3B4B4';
@@ -156,61 +158,73 @@
         constructor(x, y, type, onclick) {
           super(x, y, tokenSize, tokenSize, onclick);
           this.type = type;
+          this.frameNum = 0;
+          this.maxFrames = type == "E" ? 8 : type == "T" ? 12 : 16;
 
           gameWindowContents.push(this)
+          requestingRepaint = true;
         }
 
         changePos(newPos) {
           [this.x, this.y] = newPos;
         }
 
-        getImg() {
-          let img = new Image();
-          switch (this.type) {
-            case "N":
-              img.src = "assets\\gif\\nitris-token.gif";
-
-            case "E":
-              img.src = "assets\\gif\\etherium-token.gif";
-
-            case "S":
-              img.src = "assets\\gif\\sardinite-token.gif";
-
-            case "W":
-              img.src = "assets\\gif\\wearine-token.gif";
-
-            default:
-              img.src = "assets\\gif\\nitris-token.gif";
-          }
-          return img;
+        getImgSrc() {
+            switch (this.type) {
+              case "N":
+                return `assets\\spritesheets\\nitris-token\\nitris-token_${this.frameNum}.png`;
+  
+              case "E":
+                return `assets\\spritesheets\\etherium-token\\etherium-token_${this.frameNum}.png`;
+  
+              case "S":
+                return `assets\\spritesheets\\sardinite-token\\sardinite-token_${this.frameNum}.png`;
+  
+              case "W":
+                return `assets\\spritesheets\\wearine-token\\wearine-token_${this.frameNum}.png`;
+  
+              case "T":
+                return `assets\\spritesheets\\nitris-token\\nitris-token_${this.frameNum}.png`;
+  
+              default:
+                return "assets\\gif\\nitris-token.gif";
+            }
         }
 
         draw() {
-          let img = this.getImg();
-          context.drawImage(img, this.x, this.y, tokenSize, tokenSize);
+          let src = this.getImgSrc();
+          let img = new Image(tokenSize, tokenSize);
+          img.onload = () => {
+            context.drawImage(img, this.x, this.y);
+          }
+          img.src = src;
+          this.frameNum++;
         }
       }
 
       class Board extends GameObject {
 
-        constructor(x, y, width, height, boardState, onclick) {
-          super(x, y, width, height, onclick);
+        constructor(x, y, boardState, onclick) {
+          super(x, y, boardDimension, boardDimension, onclick);
           this.boardState = boardState || this.generateNewBoard();
 
+          // debugger;
           gameWindowContents.push(this)
+          requestingRepaint = true;
         }
 
         generateNewBoard() {
+          const fullTokenSize = tokenSize + tokenGap;
           let boardOut = [];
           for(let i = 0; i < boardSize; i++) {
             let row = [];
             for(let j = 0; j < boardSize; j++) {
-              let tokenToAdd = new Token(this.x + i * tokenSize, this.y + j * tokenSize, 'NESW'.split("")[Math.floor(Math.random() * 4)], function() {
+              let xPos = this.x + i * fullTokenSize;
+              let yPos = this.y + j * fullTokenSize;
+              let tokenToAdd = new Token(xPos, yPos, 'NESW'.split("")[Math.floor(Math.random() * 4)], function() {
                 console.log(`Token Clicked, type is ${this.type}`);
-                requestingRepaint = true;
               })
               row.push(tokenToAdd)
-              gameWindowContents.push(tokenToAdd)
             }
             boardOut.push(row);
           }
@@ -245,6 +259,7 @@
       }
 
       const drawMainMenu = () => {
+        currentWindow = "MENU"
         clearGameWindowContents();
         clearWindow();
         let btnPlay = new Button(200,160, 600, 60, "PLAY", colorP5, drawGameWindow);
@@ -255,9 +270,11 @@
       }
 
       const drawGameWindow = () => {
+        currentWindow = "GAME"
         clearWindow();
         clearGameWindowContents();
-        const board = new Board(50, 50, 400, 400, undefined, undefined)
+        const board = new Board(25, 25, undefined, undefined)
+        
         requestingRepaint = true;
       }
     </script>
