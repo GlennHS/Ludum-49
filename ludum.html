@@ -22,6 +22,8 @@
       let currentWindow = "MENU" // MENU || GAME || UPGRADE ||
       let requestingRepaint = false;
       let lastClickPos, lastElemClicked;
+      let gifFrameBufferMax = 5;
+      let gifFrameBuffer = gifFrameBufferMax;
 
       let boardSize = 8;
       let boardDimension = 600;
@@ -88,7 +90,7 @@
         lastClickPos = getCursorPosition(canvas, e);
         lastElemClicked = getElementClicked(canvas, e);
         if(lastElemClicked) {
-          debugger;
+          // debugger;
           lastElemClicked.click();
         }
       })
@@ -113,6 +115,8 @@
         click() { this.onclick && this.onclick(); }
 
         dispose() { gameWindowContents.splice(gameWindowContents.indexOf[this], 1); }
+
+        clear() { context.clearRect(this.x, this.y, this.width, this.height); }
       }
 
       class Button extends GameObject {
@@ -170,6 +174,11 @@
           [this.x, this.y] = newPos;
         }
 
+        incrementFrame() {
+          this.frameNum++;
+          if(this.frameNum > this.maxFrames - 1) { this.frameNum -= this.maxFrames; }
+        }
+
         getImgSrc() {
             switch (this.type) {
               case "N":
@@ -185,7 +194,7 @@
                 return `assets\\spritesheets\\wearine-token\\wearine-token_${this.frameNum}.png`;
   
               case "T":
-                return `assets\\spritesheets\\nitris-token\\nitris-token_${this.frameNum}.png`;
+                return `assets\\spritesheets\\time-token\\time-token_${this.frameNum}.png`;
   
               default:
                 return "assets\\gif\\nitris-token.gif";
@@ -196,10 +205,20 @@
           let src = this.getImgSrc();
           let img = new Image(tokenSize, tokenSize);
           img.onload = () => {
+            this.clear();
             context.drawImage(img, this.x, this.y);
           }
           img.src = src;
-          this.frameNum++;
+          this.incrementFrame();
+        }
+
+        static generateRandomTokenWithXY(x, y) {
+          const tokenTypes = 'NESWT'.split("");
+          const chosenType = tokenTypes[Math.floor(Math.random() * tokenTypes.length)];
+          const tokenOnclick = function() {
+              console.log(`Token Clicked, type is ${this.type}`);
+          }
+          return new Token(x, y, chosenType, tokenOnclick);
         }
       }
 
@@ -209,7 +228,6 @@
           super(x, y, boardDimension, boardDimension, onclick);
           this.boardState = boardState || this.generateNewBoard();
 
-          // debugger;
           gameWindowContents.push(this)
           requestingRepaint = true;
         }
@@ -217,21 +235,16 @@
         generateNewBoard() {
           const fullTokenSize = tokenSize + tokenGap;
           let boardOut = [];
-          const tokenOnclick = function() {
-            debugger;
-              console.log(`Token Clicked, type is ${this.type}`);
-          }
           for(let i = 0; i < boardSize; i++) {
             let row = [];
             for(let j = 0; j < boardSize; j++) {
-              let xPos = this.x + i * fullTokenSize + (tokenGap / 2); // Need to add a bit of tokenGap otherwise it clips frame
-              let yPos = this.y + j * fullTokenSize + (tokenGap / 2);
-              let tokenToAdd = new Token(xPos, yPos, 'NESW'.split("")[Math.floor(Math.random() * 4)], tokenOnclick);
+              let xPos = this.x + j * fullTokenSize + (tokenGap / 2); // Need to add a bit of tokenGap otherwise it clips frame
+              let yPos = this.y + i * fullTokenSize + (tokenGap / 2); // Swapped i & j so it generates row by row instead of col by col
+              let tokenToAdd = Token.generateRandomTokenWithXY(xPos, yPos);
               row.push(tokenToAdd)
             }
             boardOut.push(row);
           }
-          // debugger;
           return boardOut;
         }
 
@@ -251,12 +264,18 @@
 
       const redraw = () => {
         if(requestingRepaint) {
-          clearWindow();
+          // clearWindow();
+          requestingRepaint = false;
           gameWindowContents.forEach( obj => {
+            // typeof obj.clear != "undefined" ?  obj.clear() : false;
             typeof obj.draw != "undefined" ?  obj.draw() : false;
           })
-          requestingRepaint = false;
           // debugger;
+        }
+        gifFrameBuffer--;
+        if(gifFrameBuffer <= 0) {
+          requestingRepaint = true;
+          gifFrameBuffer = gifFrameBufferMax;
         }
         window.requestAnimationFrame(redraw);
       }
