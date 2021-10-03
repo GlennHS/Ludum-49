@@ -46,7 +46,7 @@
         let elemClicked;
         gameWindowContents.forEach( obj => {
           try {
-            if(typeof obj.width != "undefined" && typeof obj.height != "undefined" && typeof obj.x != "undefined" && typeof obj.y != "undefined") {
+            if(typeof obj.width != "undefined" && typeof obj.height != "undefined" && typeof obj.x != "undefined" && typeof obj.y != "undefined" && typeof obj.onclick != "undefined") {
               if(obj.x < xPos && xPos < (obj.x + obj.width) && obj.y < yPos && yPos < (obj.y + obj.height)) {
                 elemClicked = obj;
               }
@@ -88,6 +88,7 @@
         lastClickPos = getCursorPosition(canvas, e);
         lastElemClicked = getElementClicked(canvas, e);
         if(lastElemClicked) {
+          debugger;
           lastElemClicked.click();
         }
       })
@@ -216,14 +217,16 @@
         generateNewBoard() {
           const fullTokenSize = tokenSize + tokenGap;
           let boardOut = [];
+          const tokenOnclick = function() {
+            debugger;
+              console.log(`Token Clicked, type is ${this.type}`);
+          }
           for(let i = 0; i < boardSize; i++) {
             let row = [];
             for(let j = 0; j < boardSize; j++) {
-              let xPos = this.x + i * fullTokenSize;
-              let yPos = this.y + j * fullTokenSize;
-              let tokenToAdd = new Token(xPos, yPos, 'NESW'.split("")[Math.floor(Math.random() * 4)], function() {
-                console.log(`Token Clicked, type is ${this.type}`);
-              })
+              let xPos = this.x + i * fullTokenSize + (tokenGap / 2); // Need to add a bit of tokenGap otherwise it clips frame
+              let yPos = this.y + j * fullTokenSize + (tokenGap / 2);
+              let tokenToAdd = new Token(xPos, yPos, 'NESW'.split("")[Math.floor(Math.random() * 4)], tokenOnclick);
               row.push(tokenToAdd)
             }
             boardOut.push(row);
@@ -266,6 +269,7 @@
         let btnOptions = new Button(200, 260, 600, 60, "OPTIONS", colorP5, drawGameWindow);
         let btnAbout = new Button(200,360, 600, 60, "ABOUT", colorP5, drawGameWindow);
         let btnExit = new Button(200,460, 600, 60, "EXIT", colorP3, drawGameWindow);
+
         requestingRepaint = true;
       }
 
