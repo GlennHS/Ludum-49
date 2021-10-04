@@ -246,11 +246,13 @@
                 if(([this.boardX - 1, this.boardX, this.boardX + 1].includes(selectedTokenLocation[0]) && this.boardY == selectedTokenLocation[1]
                   || [this.boardY - 1, this.boardY, this.boardY + 1].includes(selectedTokenLocation[1]) && this.boardX == selectedTokenLocation[0])
                   && [this.boardX,this.boardY].join("|") !== selectedTokenLocation.join("|")) {
+                  debugger;
                   gameBoard.swapTokens(selectedTokenLocation[0], selectedTokenLocation[1], this.boardX, this.boardY);
                   selectedToken = undefined;
                   selectedTokenLocation = undefined;
                   console.log("Swapped?");
                   requestingRepaint = true;
+                  debugger;
                 } else {
                   console.log("NO SWAPSIES");
                   selectedToken = this;
@@ -342,8 +344,8 @@
           this.boardState[t1x][t1y] = this.boardState[t2x][t2y];
           this.boardState[t2x][t2y] = temp;
 
-          this.boardState[t1x][t1y].changePos([t2x, t2y]);
-          this.boardState[t2x][t2y].changePos([t1x, t1y]);
+          this.boardState[t1x][t1y].changePos([t1x, t1y]);
+          this.boardState[t2x][t2y].changePos([t2x, t2y]);
         }
 
       }
