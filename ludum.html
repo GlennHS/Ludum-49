@@ -25,10 +25,11 @@
       let gifFrameBufferMax = 5;
       let gifFrameBuffer = gifFrameBufferMax;
 
-      let boardSize = 8;
-      let boardDimension = 600;
-      let tokenGap = 8;
-      let tokenSize = Math.floor(boardDimension / boardSize) - tokenGap;
+      const boardSize = 8;
+      const boardDimension = 600;
+      const tokenGap = 8;
+      const tokenSize = Math.floor(boardDimension / boardSize) - tokenGap;
+      const fullTokenSize = tokenSize + tokenGap;
 
       // Colors
       const colorP1 = '#B3B4B4';
@@ -161,7 +162,7 @@
       class Token extends GameObject {
 
         constructor(x, y, type, onclick) {
-          super(x, y, tokenSize, tokenSize, onclick);
+          super(x, y, tokenSize, tokenSize, onclick || Token.getDefaultOnclick());
           this.type = type;
           this.frameNum = 0;
           this.maxFrames = type == "E" ? 8 : type == "T" ? 12 : 16;
@@ -213,12 +214,24 @@
         }
 
         static generateRandomTokenWithXY(x, y) {
+          
+          const chosenType = Token.chooseTokenType();
+          const tokenOnclick = Token.getDefaultOnclick();
+
+          gameWindowContents.push(this)
+          requestingRepaint = true;
+          return new Token(x, y, chosenType, tokenOnclick);
+        }
+      
+        static chooseTokenType() {
           const tokenTypes = 'NESWT'.split("");
-          const chosenType = tokenTypes[Math.floor(Math.floor(Math.random() * 17) / 4)]; // Designed to skew against Time Tokens
-          const tokenOnclick = function() {
+          return tokenTypes[Math.floor(Math.floor(Math.random() * 17) / 4)]; // Designed to skew against Time Tokens
+        }
+
+        static getDefaultOnclick() {
+          return function() {
               console.log(`Token Clicked, type is ${this.type}`);
           }
-          return new Token(x, y, chosenType, tokenOnclick);
         }
       }
 
@@ -226,26 +239,10 @@
 
         constructor(x, y, boardState, onclick) {
           super(x, y, boardDimension, boardDimension, onclick);
-          this.boardState = boardState || this.generateNewBoard();
+          this.boardState = boardState || this.generateMatchlessBoardState();
 
           gameWindowContents.push(this)
           requestingRepaint = true;
-        }
-
-        generateNewBoard() {
-          const fullTokenSize = tokenSize + tokenGap;
-          let boardOut = [];
-          for(let i = 0; i < boardSize; i++) {
-            let row = [];
-            for(let j = 0; j < boardSize; j++) {
-              let xPos = this.x + j * fullTokenSize + (tokenGap / 2); // Need to add a bit of tokenGap otherwise it clips frame
-              let yPos = this.y + i * fullTokenSize + (tokenGap / 2); // Swapped i & j so it generates row by row instead of col by col
-              let tokenToAdd = Token.generateRandomTokenWithXY(xPos, yPos);
-              row.push(tokenToAdd)
-            }
-            boardOut.push(row);
-          }
-          return boardOut;
         }
 
         draw() {
@@ -254,6 +251,66 @@
           context.strokeStyle = colorP1;
           context.strokeRect(this.x, this.y, this.width, this.height);
         }
+
+        generateFullyRandomBoardState() {
+          let boardOut = [];
+          for(let i = 0; i < boardSize; i++) {
+            let row = [];
+            for(let j = 0; j < boardSize; j++) {
+              let xPos = this.x + j * fullTokenSize + (tokenGap / 2); // Need to add a bit of tokenGap otherwise it clips frame
+              let yPos = this.y + i * fullTokenSize + (tokenGap / 2); // Swapped i & j so it generates row by row instead of col by col
+              let tokenToAdd = Token.generateRandomTokenWithXY(xPos, yPos);
+              row.push(tokenToAdd);
+            }
+            boardOut.push(row);
+          }
+          return boardOut;
+        }
+
+        generateMatchlessBoardState() {
+          let boardState = [];
+          for(let i = 0; i < boardSize; i++) {
+            let row = [];
+            for(let j = 0; j < boardSize; j++) {
+              let tokenAdded = false;
+              while(!tokenAdded) {
+                let potentialType = Token.chooseTokenType(); // Propose a token type for this Board tile
+                let tokenValid = true; // Assume it's valid
+                // debugger;
+                // Check that tiles exist to the left of it and check that both their Token.type doesn't match the proposed type
+                if(typeof row[j - 1] !== "undefined" && typeof row[j - 2] !== "undefined") {
+                  if(row[j - 1].type === potentialType && row[j - 2].type === potentialType) {
+                    tokenValid = false;
+                  }
+                }
+                // Check that tiles exist above it and check that both their Token.type doesn't match the proposed type
+                if(typeof boardState[i-1] !== "undefined" && typeof boardState[i-2] !== "undefined") {
+                  /* ...don't ask
+                  console.log(`Proposed Token Type: ${potentialType}`);
+                  console.log(`Checking if tokens in same column are matching...\nLooking at column ${j}, rows ${i}, ${i-1}, ${i-2}`);
+                  console.log(`Token.type for token above is ${boardState[i-1][j].type}`);
+                  console.log(`Token.type for token two above is ${boardState[i-2][j].type}`);
+                  */
+                  if(boardState[i-1][j].type === potentialType && boardState[i-2][j].type === potentialType) {
+                    tokenValid = false;
+                    // debugger;
+                  }
+                }
+                if(tokenValid) {
+                  let xPos = this.x + j * fullTokenSize + (tokenGap / 2); // Need to add a bit of tokenGap otherwise it clips frame
+                  let yPos = this.y + i * fullTokenSize + (tokenGap / 2); // Swapped i & j so it generates row by row instead of col by col
+                  let tokenToAdd = new Token(xPos, yPos, potentialType, undefined);
+                  row.push(tokenToAdd);
+                  tokenAdded = true;
+                }
+              }
+            }
+            boardState.push(row)
+          }
+          // console.table(boardState.map(r=>r.map(c=>c.type)));
+          return boardState
+        }
+
       }
       // #endregion
 
@@ -296,6 +353,7 @@
         currentWindow = "GAME"
         clearWindow();
         clearGameWindowContents();
+        // debugger;
         const board = new Board(25, 25, undefined, undefined)
         
         requestingRepaint = true;
