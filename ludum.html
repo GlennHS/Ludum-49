@@ -31,6 +31,8 @@
       const tokenSize = Math.floor(boardDimension / boardSize) - tokenGap;
       const fullTokenSize = tokenSize + tokenGap;
 
+      let selectedToken, selectedTokenLocation, gameBoard;
+
       // Colors
       const colorP1 = '#B3B4B4';
       const colorP2 = '#FAC62F';
@@ -161,8 +163,10 @@
 
       class Token extends GameObject {
 
-        constructor(x, y, type, onclick) {
+        constructor(x, y, boardX, boardY, type, onclick) {
           super(x, y, tokenSize, tokenSize, onclick || Token.getDefaultOnclick());
+          this.boardX = boardX;
+          this.boardY = boardY;
           this.type = type;
           this.frameNum = 0;
           this.maxFrames = type == "E" ? 8 : type == "T" ? 12 : 16;
@@ -203,6 +207,8 @@
         }
 
         draw() {
+          // Make sure our X,Y is accurate first
+          [this.x, this.y] = Token.getXYFromBoardPosition(gameBoard.x, gameBoard.y, this.boardX, this.boardY);
           let src = this.getImgSrc();
           let img = new Image(tokenSize, tokenSize);
           img.onload = () => {
@@ -213,14 +219,14 @@
           this.incrementFrame();
         }
 
-        static generateRandomTokenWithXY(x, y) {
+        static generateRandomTokenWithXY(x, y, boardX, boardY) {
           
           const chosenType = Token.chooseTokenType();
           const tokenOnclick = Token.getDefaultOnclick();
 
           gameWindowContents.push(this)
           requestingRepaint = true;
-          return new Token(x, y, chosenType, tokenOnclick);
+          return new Token(x, y, boardX, boardY, chosenType, tokenOnclick);
         }
       
         static chooseTokenType() {
@@ -230,8 +236,38 @@
 
         static getDefaultOnclick() {
           return function() {
-              console.log(`Token Clicked, type is ${this.type}`);
+              // console.log(`Token Clicked, type is ${this.type}`);
+              if(!selectedToken) {
+                selectedToken = this;
+                selectedTokenLocation = [this.boardX, this.boardY];
+              } else {
+                // check adjacent
+                // Right. Anyone looking at this I'm so sorry, it's a mess. But I'd also like to see anyone else find a remotely *nice* way of doing this. If you're wondering why I'm joining the arrays first with a pipe instead of just comparing the arrays? I DON'T KNOW IT LITERALLY BREAKS IF I DO IT WITHOUT JOINING AND THINKS THE ARRAYS ARE DIFFERENT DESPITE BEING IDENTICAL IT MAKES NO SENSE. /rant
+                if(([this.boardX - 1, this.boardX, this.boardX + 1].includes(selectedTokenLocation[0]) && this.boardY == selectedTokenLocation[1]
+                  || [this.boardY - 1, this.boardY, this.boardY + 1].includes(selectedTokenLocation[1]) && this.boardX == selectedTokenLocation[0])
+                  && [this.boardX,this.boardY].join("|") !== selectedTokenLocation.join("|")) {
+                  gameBoard.swapTokens(selectedTokenLocation[0], selectedTokenLocation[1], this.boardX, this.boardY);
+                  selectedToken = undefined;
+                  selectedTokenLocation = undefined;
+                  console.log("Swapped?");
+                  requestingRepaint = true;
+                } else {
+                  console.log("NO SWAPSIES");
+                  selectedToken = this;
+                  selectedTokenLocation = [this.boardX, this.boardY];
+                }
+                  // if adjacent, swap
+                  // if not adj, set new selected token to this one
+              }
+              // console.log([this.boardX, this.boardY]);
           }
+        }
+
+        static getXYFromBoardPosition(ox, oy, bx, by) {
+          let xPos = ox + bx * fullTokenSize + (tokenGap / 2); // Need to add a bit of tokenGap otherwise it clips frame
+          let yPos = oy + by * fullTokenSize + (tokenGap / 2);
+          // debugger;
+          return [xPos, yPos]
         }
       }
 
@@ -257,9 +293,8 @@
           for(let i = 0; i < boardSize; i++) {
             let row = [];
             for(let j = 0; j < boardSize; j++) {
-              let xPos = this.x + j * fullTokenSize + (tokenGap / 2); // Need to add a bit of tokenGap otherwise it clips frame
-              let yPos = this.y + i * fullTokenSize + (tokenGap / 2); // Swapped i & j so it generates row by row instead of col by col
-              let tokenToAdd = Token.generateRandomTokenWithXY(xPos, yPos);
+              let xPos, yPos = Token.getXYFromBoardPosition(this.x, this.y, j, i);
+              let tokenToAdd = Token.generateRandomTokenWithXY(xPos, yPos, j, i);
               row.push(tokenToAdd);
             }
             boardOut.push(row);
@@ -276,7 +311,6 @@
               while(!tokenAdded) {
                 let potentialType = Token.chooseTokenType(); // Propose a token type for this Board tile
                 let tokenValid = true; // Assume it's valid
-                // debugger;
                 // Check that tiles exist to the left of it and check that both their Token.type doesn't match the proposed type
                 if(typeof row[j - 1] !== "undefined" && typeof row[j - 2] !== "undefined") {
                   if(row[j - 1].type === potentialType && row[j - 2].type === potentialType) {
@@ -285,21 +319,13 @@
                 }
                 // Check that tiles exist above it and check that both their Token.type doesn't match the proposed type
                 if(typeof boardState[i-1] !== "undefined" && typeof boardState[i-2] !== "undefined") {
-                  /* ...don't ask
-                  console.log(`Proposed Token Type: ${potentialType}`);
-                  console.log(`Checking if tokens in same column are matching...\nLooking at column ${j}, rows ${i}, ${i-1}, ${i-2}`);
-                  console.log(`Token.type for token above is ${boardState[i-1][j].type}`);
-                  console.log(`Token.type for token two above is ${boardState[i-2][j].type}`);
-                  */
                   if(boardState[i-1][j].type === potentialType && boardState[i-2][j].type === potentialType) {
                     tokenValid = false;
-                    // debugger;
                   }
                 }
                 if(tokenValid) {
-                  let xPos = this.x + j * fullTokenSize + (tokenGap / 2); // Need to add a bit of tokenGap otherwise it clips frame
-                  let yPos = this.y + i * fullTokenSize + (tokenGap / 2); // Swapped i & j so it generates row by row instead of col by col
-                  let tokenToAdd = new Token(xPos, yPos, potentialType, undefined);
+                  let xPos, yPos = Token.getXYFromBoardPosition(this.x, this.y, j, i);
+                  let tokenToAdd = new Token(xPos, yPos, j, i, potentialType, undefined);
                   row.push(tokenToAdd);
                   tokenAdded = true;
                 }
@@ -309,6 +335,15 @@
           }
           // console.table(boardState.map(r=>r.map(c=>c.type)));
           return boardState
+        }
+
+        swapTokens(t1x, t1y, t2x, t2y) {
+          let temp = this.boardState[t1x][t1y];
+          this.boardState[t1x][t1y] = this.boardState[t2x][t2y];
+          this.boardState[t2x][t2y] = temp;
+
+          this.boardState[t1x][t1y].changePos([t2x, t2y]);
+          this.boardState[t2x][t2y].changePos([t1x, t1y]);
         }
 
       }
@@ -354,7 +389,7 @@
         clearWindow();
         clearGameWindowContents();
         // debugger;
-        const board = new Board(25, 25, undefined, undefined)
+        gameBoard = new Board(25, 25, undefined, undefined);
         
         requestingRepaint = true;
       }
